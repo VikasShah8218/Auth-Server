@@ -1,0 +1,26 @@
+# Dependencies and builds (dist/ also holds the bundle report, stats.html)
+node_modules/
+dist/
+dist-ssr/
+*.tsbuildinfo
+.vite/
+
+# Secrets and local settings: Vite reads .env, .env.local, .env.[mode]
+.env
+.env.*
+!.env.example
+*.local
+
+# Tests
+coverage/
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+screens/
+
+# Logs
+*.log
+npm-debug.log*
+
+# openapi/auth.json and src/api/schema.d.ts are NOT ignored: the client builds from them

@@ -1,0 +1,326 @@
+@import "tailwindcss";
+
+/* ==========================================================================
+   Design tokens. Source of truth: ui-design/assets/tokens.css (locked).
+   Renamed for Tailwind: --text -> --fg, --brass -> --accent.
+   ========================================================================== */
+
+:root {
+  --bg: #f4f5f8;
+  --surface: #ffffff;
+  --surface-2: #f0f2f6;
+  --line: #e1e4eb;
+  --line-strong: #cdd2dc;
+  --fg: #14182b;
+  --fg-2: #4a5168;
+  --muted: #737a92;
+
+  --ink: #14182b;
+  --ink-2: #1e2440;
+  --ink-line: #2a3152;
+  --ink-fg: #c9cddb;
+  --ink-muted: #7d84a0;
+
+  --accent: #22b8cf;
+  --accent-strong: #0b7f91;
+  --accent-soft: #e0f6f9;
+
+  --primary: var(--ink);
+  --primary-hover: #262d4f;
+  --primary-fg: #ffffff;
+
+  --ok: #2e8b57;
+  --ok-soft: #e3f2ea;
+  --warn: #c2621d;
+  --warn-soft: #fbeadd;
+  --danger: #c23a3a;
+  --danger-soft: #f9e3e3;
+  --info: #3e6fb0;
+  --info-soft: #e3ecf7;
+
+  --elev-sm: 0 1px 2px rgba(20, 24, 43, 0.06);
+  --elev: 0 1px 2px rgba(20, 24, 43, 0.06), 0 12px 28px -14px rgba(20, 24, 43, 0.22);
+  --elev-lg: 0 24px 64px -16px rgba(10, 13, 24, 0.45);
+  --focus-ring: 0 0 0 3px rgba(34, 184, 207, 0.35);
+
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1c2130;
+    --surface: #242a3b;
+    --surface-2: #2b3245;
+    --line: #363e54;
+    --line-strong: #465068;
+    --fg: #eef0f5;
+    --fg-2: #c5cad8;
+    --muted: #99a0b4;
+    --ink: #171b28;
+    --ink-2: #252b3c;
+    --ink-line: #2e3447;
+    --ink-fg: #d0d4e0;
+    --ink-muted: #8d94a9;
+    --accent: #4fd1e0;
+    --accent-strong: #7fe0eb;
+    --accent-soft: rgba(79, 209, 224, 0.15);
+    --primary: #e7e9f1;
+    --primary-hover: #ffffff;
+    --primary-fg: #1c2130;
+    --ok: #52b884;
+    --ok-soft: rgba(82, 184, 132, 0.14);
+    --warn: #e8894a;
+    --warn-soft: rgba(232, 137, 74, 0.14);
+    --danger: #e36464;
+    --danger-soft: rgba(227, 100, 100, 0.14);
+    --info: #6f9ad6;
+    --info-soft: rgba(111, 154, 214, 0.14);
+    --elev-sm: none;
+    --elev: 0 12px 28px -14px rgba(0, 0, 0, 0.45);
+    --focus-ring: 0 0 0 3px rgba(79, 209, 224, 0.4);
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: #1c2130;
+  --surface: #242a3b;
+  --surface-2: #2b3245;
+  --line: #363e54;
+  --line-strong: #465068;
+  --fg: #eef0f5;
+  --fg-2: #c5cad8;
+  --muted: #99a0b4;
+  --ink: #171b28;
+  --ink-2: #252b3c;
+  --ink-line: #2e3447;
+  --ink-fg: #d0d4e0;
+  --ink-muted: #8d94a9;
+  --accent: #4fd1e0;
+  --accent-strong: #7fe0eb;
+  --accent-soft: rgba(79, 209, 224, 0.15);
+  --primary: #e7e9f1;
+  --primary-hover: #ffffff;
+  --primary-fg: #1c2130;
+  --ok: #52b884;
+  --ok-soft: rgba(82, 184, 132, 0.14);
+  --warn: #e8894a;
+  --warn-soft: rgba(232, 137, 74, 0.14);
+  --danger: #e36464;
+  --danger-soft: rgba(227, 100, 100, 0.14);
+  --info: #6f9ad6;
+  --info-soft: rgba(111, 154, 214, 0.14);
+  --elev-sm: none;
+  --elev: 0 12px 28px -14px rgba(0, 0, 0, 0.45);
+  --focus-ring: 0 0 0 3px rgba(79, 209, 224, 0.4);
+  color-scheme: dark;
+}
+
+/* Tokens as Tailwind utilities: bg-surface, text-fg-2, border-line, rounded-card, shadow-pop, font-display ... */
+@theme inline {
+  --font-display: "Schibsted Grotesk Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "IBM Plex Sans Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-fg: var(--fg);
+  --color-fg-2: var(--fg-2);
+  --color-muted: var(--muted);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-line: var(--ink-line);
+  --color-ink-fg: var(--ink-fg);
+  --color-ink-muted: var(--ink-muted);
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-soft: var(--accent-soft);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-fg: var(--primary-fg);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+
+  --radius-control: 8px;
+  --radius-menu: 10px;
+  --radius-card: 14px;
+  --radius-panel: 16px;
+
+  --shadow-soft: var(--elev-sm);
+  --shadow-pop: var(--elev);
+  --shadow-modal: var(--elev-lg);
+}
+
+/* ==========================================================================
+   Base
+   ========================================================================== */
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font: 400 14px/1.5 var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    letter-spacing: -0.01em;
+  }
+  :focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+    border-radius: 6px;
+  }
+  ::placeholder {
+    color: var(--muted);
+  }
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--line-strong) transparent;
+  }
+}
+
+/* ==========================================================================
+   Pieces that are clearer as CSS than as utility strings
+   ========================================================================== */
+
+@layer components {
+  /* Native <select> with the design's chevron. */
+  .select-chevron {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23858ca5' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 16px;
+  }
+
+  /* KeyCut: one tooth per permission bit. Held bits are cut tall in the accent colour. */
+  .keycut {
+    display: inline-flex;
+    align-items: flex-end;
+    gap: 4px;
+    height: 52px;
+    padding: 0 14px;
+    background: var(--surface-2);
+    border-radius: 10px 10px 0 0;
+    border-bottom: 3px solid var(--line-strong);
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: visible;
+  }
+  .keycut-bit {
+    position: relative;
+    flex: none;
+    width: 16px;
+    height: 14px;
+    border-radius: 3px 3px 0 0;
+    background: var(--line-strong);
+    transition:
+      height 0.35s ease,
+      background-color 0.35s ease;
+  }
+  .keycut-bit[data-held="true"] {
+    height: 38px;
+    background: var(--accent);
+  }
+  .keycut-bit[data-wild="true"] {
+    width: 22px;
+  }
+  .keycut-bit[data-wild="true"]::before {
+    content: "*";
+    position: absolute;
+    inset: auto 0 100% 0;
+    text-align: center;
+    font: 500 11px var(--font-mono);
+    color: var(--muted);
+  }
+  .keycut-bit[data-retired="true"] {
+    background: repeating-linear-gradient(135deg, var(--line-strong) 0 2px, transparent 2px 4px);
+  }
+
+  /* Tables turn into cards below 720px. */
+  @media (max-width: 720px) {
+    .table-cards,
+    .table-cards tbody {
+      display: block;
+    }
+    .table-cards thead {
+      display: none;
+    }
+    .table-cards tr {
+      position: relative;
+      display: grid;
+      gap: 8px;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+    }
+    .table-cards tbody tr:last-child {
+      border-bottom: 0;
+    }
+    .table-cards td {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 0 !important;
+      border: 0 !important;
+      text-align: right;
+    }
+    .table-cards td::before {
+      content: attr(data-label);
+      color: var(--muted);
+      font: 400 12px var(--font-sans);
+      text-align: left;
+    }
+    .table-cards td[data-primary] {
+      justify-content: flex-start;
+      text-align: left;
+      padding-right: 40px !important;
+    }
+    .table-cards td[data-primary]::before,
+    .table-cards td[data-actions]::before {
+      display: none;
+    }
+    .table-cards td[data-actions] {
+      position: absolute;
+      right: 12px;
+      top: 12px;
+    }
+    .table-cards tbody tr:hover td {
+      background: none;
+    }
+  }
+
+  .animate-cut > * {
+    animation: cut 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+}
+
+@keyframes cut {
+  from {
+    height: 4px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

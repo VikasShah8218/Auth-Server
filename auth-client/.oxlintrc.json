@@ -1,0 +1,19 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["react", "typescript", "jsx-a11y", "import"],
+  "categories": { "correctness": "error", "suspicious": "warn" },
+  "rules": {
+    "react/react-in-jsx-scope": "off",
+    "react/rules-of-hooks": "error",
+    "react/exhaustive-deps": "warn",
+    "import/no-cycle": "error",
+    "react/no-unstable-nested-components": ["warn", { "allowAsProps": true }],
+    "jsx-a11y/label-has-associated-control": [
+      "error",
+      { "controlComponents": ["Input", "Select", "Checkbox", "Textarea"], "depth": 3 }
+    ],
+    "jsx-a11y/no-autofocus": "off",
+    "import/no-unassigned-import": ["warn", { "allow": ["**/*.css", "@fontsource*/**", "@testing-library/jest-dom/vitest"] }]
+  },
+  "ignorePatterns": ["src/api/schema.d.ts", "dist"]
+}
