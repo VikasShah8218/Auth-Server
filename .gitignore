@@ -1,0 +1,40 @@
+# Repository-wide rules. auth-server/ and auth-client/ have their own .gitignore for project specifics.
+
+# Secrets: only .env.example files belong in git
+.env
+.env.*
+!.env.example
+
+# Python (also covers sdk/)
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Node
+node_modules/
+dist/
+
+# Logs
+*.log
+logs/
+ignore/
+
+
+# Editors and tools
+.idea/
+.vscode/
+*.swp
+.claude/settings.local.json
+
+# Operating system
+.DS_Store
+Thumbs.db
+desktop.ini
