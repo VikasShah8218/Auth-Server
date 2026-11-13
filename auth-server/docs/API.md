@@ -405,7 +405,8 @@ Retires the permission (its bit stays reserved) and removes it from roles → th
 users' tokens become stale. The `*` permission can't be retired (`409 protected`).
 
 ### `GET /v1/admin/applications/{key}/roles`
-By name: `[{"id", "name", "description"}]`.
+By name: `[{"id", "public_id", "name", "description"}]`. `public_id` is the role's stable UUID, the `id`
+downstream servers see; it survives renames.
 
 ### `POST /v1/admin/applications/{key}/roles`
 `{"name": "Operator", "description": "..."}` → `201` role. Error: `409 role_exists`.
@@ -490,7 +491,7 @@ Client shape:
 ```
 
 Rules: scopes come from `openid profile email` (browser) and `events.read permissions.read users.read`
-(service). A public client needs a redirect URI and can't hold service scopes or audiences. Redirect URIs
+(service). `users.read` lets a downstream server list its own app's members and roles (section 11). A public client needs a redirect URI and can't hold service scopes or audiences. Redirect URIs
 must be https, or http on localhost, without a fragment. The AUTH app can't be an audience.
 
 ### `GET /v1/admin/clients`
@@ -614,6 +615,58 @@ Scope `permissions.read`. The code-to-bit map. Refetch when a token's `pv` is ne
 ```json
 { "version": 4, "permissions": [ { "code": "*", "bit": 0, "retired": false }, { "code": "vehicle.read", "bit": 1, "retired": false } ] }
 ```
+
+### `GET /v1/apps/{key}/members`
+Scope `users.read`. Users holding at least one role in the app, by username, including disabled users.
+
+| Query | Default | Notes |
+|---|---|---|
+| `limit` | 200 | 1 to 1000 |
+| `cursor` | none | The previous page's `next_cursor`. Opaque |
+| `q` | none | Case-insensitive match on username, first or last name, email |
+
+```json
+{
+  "items": [
+    {
+      "sub": "8f0c2a4e-...",
+      "username": "vikas",
+      "given_name": "Vikas",
+      "family_name": "Shah",
+      "email": "vikas@example.com",
+      "is_active": true,
+      "roles": [ { "id": "1b7e...", "name": "Admin" }, { "id": "93d0...", "name": "Operator" } ]
+    }
+  ],
+  "next_cursor": "dmlrYXM"
+}
+```
+
+- `sub` is the user's public id: the same value as the `sub` claim in their access tokens.
+- `given_name`, `family_name`, `email` are `null` when not set. The names match `/oauth/userinfo`.
+- `roles` are this app's roles only, by name. A role's `id` is stable across renames; store it, not the name.
+- `next_cursor` is `null` on the last page. Unlike the admin lists (`limit`/`offset` with `total`), this list
+  pages by key, so it never skips or repeats a member while the list changes.
+- Never returned: password hashes, MFA state, superuser flag, sessions, internal ids. Names and email are
+  personal data: only clients given `users.read` can read them, and only for their own app.
+
+Errors: `403 insufficient_scope`, `403 wrong_application`, `422 invalid_cursor`, `401` for a user token or a
+token of a deactivated app.
+
+### `GET /v1/apps/{key}/roles`
+Scope `users.read`. Every role of the app, by name, with its active permission codes (retired ones left out).
+
+```json
+[
+  { "id": "1b7e...", "name": "Admin", "description": "Full access", "permissions": ["*"] },
+  { "id": "93d0...", "name": "Operator", "description": null, "permissions": ["camera.view", "live.view"] }
+]
+```
+
+`name` is exactly what appears in the token's `roles` claim. Errors as for members.
+
+**When to refresh a cached copy:** on `user.access_changed`, `user.disabled` and `members.changed`, and after
+taking a snapshot. The SDK's `on_change` hook does this.
 
 Event types and payloads are listed in [ARCHITECTURE.md, section 9](ARCHITECTURE.md#9-revocation-and-downstream-sync).
 

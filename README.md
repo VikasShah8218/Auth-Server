@@ -16,10 +16,15 @@ The central identity and access server for a family of applications: ANPR, NVR a
 ![License](https://img.shields.io/badge/License-GPL--3.0-blue)
 
 [Features](#-features) ·
+[Screenshots](#-screenshots) ·
 [How it works](#-how-it-works) ·
 [Quick start](#-quick-start) ·
 [Connect an app](#-connect-your-application) ·
 [Docs](#-documentation)
+
+<br/>
+
+<img src="gallery/01-dashboard.png" alt="Auth Server admin console: dashboard with users, applications, live sessions, downstream sync, signing key and recent activity" width="100%"/>
 
 </div>
 
@@ -59,6 +64,73 @@ The Auth Server replaces that with **one place**:
 | **Python SDK** | Drop-in FastAPI dependencies: `require_perm("vehicle.read")` and you're done |
 
 👉 The full, detailed list (every feature, small to big) is in **[docs/FEATURES.md](docs/FEATURES.md)**.
+
+---
+
+## 📸 Screenshots
+
+### Signing in
+
+<table>
+  <tr>
+    <td width="50%"><img src="gallery/11-sign-in-code.png" alt="Two-step sign-in: six-digit authenticator code"/></td>
+    <td width="50%"><img src="gallery/12-sign-in-passkey.png" alt="Two-step sign-in with a passkey (Windows Hello)"/></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Authenticator code</b>: the second step after the password</td>
+    <td align="center"><b>Passkey or security key</b>: Windows Hello, YubiKey, phone</td>
+  </tr>
+</table>
+
+### Managing access
+
+<table>
+  <tr>
+    <td width="50%"><img src="gallery/03-users.png" alt="Users list with applications, MFA status and search"/></td>
+    <td width="50%"><img src="gallery/04-user-access.png" alt="A user's access: roles, permissions and the key-cut strip"/></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Users</b>: search, filter by app, MFA at a glance</td>
+    <td align="center"><b>A user's access</b>: roles, permissions and the key-cut strip, one tooth per permission</td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="gallery/02-applications.png" alt="Applications connected to the Auth Server"/></td>
+    <td width="50%"><img src="gallery/05-give-access-dialog.png" alt="Dialog to give a user access to another application"/></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Applications</b>: every system that trusts this server</td>
+    <td align="center"><b>Give access</b>: pick an app, then the user's roles in it</td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="gallery/06-clients.png" alt="OAuth clients: browser apps and servers with their scopes"/></td>
+    <td width="50%"></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Clients</b>: browser apps, desktop apps and servers, with their scopes</td>
+    <td></td>
+  </tr>
+</table>
+
+### Operations
+
+<table>
+  <tr>
+    <td width="50%"><img src="gallery/07-downstream-sync.png" alt="Downstream sync status of every connected server"/></td>
+    <td width="50%"><img src="gallery/08-signing-keys.png" alt="Signing keys with next and active key"/></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Downstream sync</b>: is every app's server up to date on revocations?</td>
+    <td align="center"><b>Signing keys</b>: the next key is published before it signs anything</td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="gallery/09-audit-log.png" alt="Audit log of every change"/></td>
+    <td width="50%"><img src="gallery/10-audit-log-filters.png" alt="Audit log filtered by action"/></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Audit log</b>: every change, and it can't be edited or deleted</td>
+    <td align="center"><b>Filters</b>: by action and by application</td>
+  </tr>
+</table>
 
 ---
 
@@ -109,7 +181,8 @@ Auth-Server/
 ├── auth-server/   FastAPI server: identity, OAuth/OIDC, access control, events, audit
 ├── auth-client/   React app: hosted login page, admin console, My account
 ├── sdk/           Python SDK for downstream servers (ANPR, NVR, ...)
-└── docs/          Features, project structure, client plan
+├── docs/          Features, project structure, plans and handoffs
+└── gallery/       Screenshots used in this README
 ```
 
 | Folder | Stack | Read more |

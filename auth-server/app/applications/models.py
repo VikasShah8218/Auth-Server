@@ -1,5 +1,7 @@
 """The access model: applications, their permission bits and roles, and who holds which role."""
 
+from uuid import uuid4
+
 from tortoise import fields, models
 
 
@@ -23,6 +25,8 @@ class Application(models.Model):
 
 class Role(models.Model):
     id = fields.IntField(primary_key=True)
+    # Stable id for downstream servers: survives renames, unlike the name in the token "roles" claim.
+    public_id = fields.UUIDField(default=uuid4, unique=True)
     app = fields.ForeignKeyField("models.Application", related_name="roles")
     name = fields.CharField(max_length=64)
     description = fields.TextField(null=True)

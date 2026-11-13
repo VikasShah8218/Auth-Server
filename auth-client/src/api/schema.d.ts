@@ -556,6 +556,40 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/apps/{key}/members": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Users holding any role in the app, by username (keyset pages) */
+    get: operations["app_members_v1_apps__key__members_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/apps/{key}/roles": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Every role of the app with its active permission codes */
+    get: operations["app_roles_v1_apps__key__roles_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/admin/applications": {
     parameters: {
       query?: never;
@@ -1325,6 +1359,11 @@ export interface components {
     RoleDetail: {
       /** Id */
       id: number;
+      /**
+       * Public Id
+       * Format: uuid
+       */
+      public_id: string;
       /** Name */
       name: string;
       /** Description */
@@ -1336,6 +1375,11 @@ export interface components {
     RoleOut: {
       /** Id */
       id: number;
+      /**
+       * Public Id
+       * Format: uuid
+       */
+      public_id: string;
       /** Name */
       name: string;
       /** Description */
@@ -1352,6 +1396,57 @@ export interface components {
       name?: string | null;
       /** Description */
       description?: string | null;
+    };
+    /** ServiceMemberOut */
+    ServiceMemberOut: {
+      /**
+       * Sub
+       * Format: uuid
+       */
+      sub: string;
+      /** Username */
+      username: string;
+      /** Given Name */
+      given_name: string | null;
+      /** Family Name */
+      family_name: string | null;
+      /** Email */
+      email: string | null;
+      /** Is Active */
+      is_active: boolean;
+      /** Roles */
+      roles: components["schemas"]["ServiceRoleRef"][];
+    };
+    /** ServiceMembersPage */
+    ServiceMembersPage: {
+      /** Items */
+      items: components["schemas"]["ServiceMemberOut"][];
+      /** Next Cursor */
+      next_cursor: string | null;
+    };
+    /** ServiceRoleOut */
+    ServiceRoleOut: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Name */
+      name: string;
+      /** Description */
+      description: string | null;
+      /** Permissions */
+      permissions: string[];
+    };
+    /** ServiceRoleRef */
+    ServiceRoleRef: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Name */
+      name: string;
     };
     /** SessionOut */
     SessionOut: {
@@ -2454,6 +2549,73 @@ export interface operations {
           "application/json": {
             [key: string]: unknown;
           };
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  app_members_v1_apps__key__members_get: {
+    parameters: {
+      query?: {
+        limit?: number;
+        cursor?: string | null;
+        /** @description Matches username, names or email */
+        q?: string | null;
+      };
+      header?: never;
+      path: {
+        key: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ServiceMembersPage"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  app_roles_v1_apps__key__roles_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        key: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ServiceRoleOut"][];
         };
       };
       /** @description Validation Error */

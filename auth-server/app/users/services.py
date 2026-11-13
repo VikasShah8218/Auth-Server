@@ -9,6 +9,7 @@ from tortoise.transactions import in_transaction
 from app.applications import services as app_services
 from app.applications.models import Application, Permission, Role, UserRole
 from app.audit.services import Actor, record_audit
+from app.events.services import lock_event_counters
 from app.identity.models import MfaFactor
 from app.identity.services import revoke_user_sessions
 from app.users.models import User
@@ -16,6 +17,9 @@ from app.users.schemas import UserAppAccess, UserCreate, UserDetail, UserListIte
 from app.users.utils import hash_password, validate_password
 from settings.settings import settings
 from utilities.exceptions import AppError, conflict, not_found
+
+# Fields downstream servers cache through the members endpoint.
+PROFILE_FIELDS = ("first_name", "last_name", "email")
 
 
 async def get_user(public_id: UUID) -> User:
@@ -54,20 +58,31 @@ async def update_user(public_id: UUID, data: UserUpdate, actor: Actor) -> User:
 
     disabling = changes.get("is_active") is False and user.is_active
     enabling = changes.get("is_active") is True and not user.is_active
+    # Downstream servers cache names and email (GET /v1/apps/{key}/members), so a real change is announced.
+    profile_changed = any(
+        field in changes and (changes[field] or None) != (getattr(user, field) or None) for field in PROFILE_FIELDS
+    )
     try:
         async with in_transaction():
             if disabling and await app_services.is_auth_admin(user.id):
                 await app_services.ensure_other_admin_remains(user.id)
+            app_ids: list[int] = []
+            if disabling or enabling or profile_changed:
+                app_ids = sorted(
+                    await Application.filter(roles__users__user_id=user.id).distinct().values_list("id", flat=True)
+                )
+            if (disabling or enabling) and profile_changed:
+                # Several events in one change: take every counter first, in order, so it can't deadlock.
+                await lock_event_counters(app_ids)
             await user.update_from_dict(changes).save()
             if disabling:
                 await revoke_user_sessions(user.id)
             if disabling or enabling:
-                app_ids = await Application.filter(roles__users__user_id=user.id).distinct().values_list(
-                    "id", flat=True
-                )
                 event = "user.disabled" if disabling else "user.access_changed"
-                for app_id in sorted(app_ids):
+                for app_id in app_ids:
                     await app_services.bump_versions(app_id, [user.id], event)
+            if profile_changed and app_ids:
+                await app_services.publish_members_changed(app_ids, {"sub": str(user.public_id)})
             await record_audit(actor, "user.update", target=str(user.public_id), details={"fields": sorted(changes)})
     except IntegrityError:
         raise conflict("user_exists", "This email is already in use") from None

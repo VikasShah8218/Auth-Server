@@ -103,6 +103,7 @@ async def get_role(key: str, role_id: int):
     role = await services.get_role(app, role_id)
     return RoleDetail(
         id=role.id,
+        public_id=role.public_id,
         name=role.name,
         description=role.description,
         permissions=await services.role_permissions(role),

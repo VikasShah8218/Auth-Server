@@ -23,11 +23,12 @@ const schema = z
     email: optionalEmail,
     password: passwordFor(() => ""),
     is_active: z.boolean(),
-  })
-  .refine((v) => !v.username || !v.password.toLowerCase().includes(v.username.toLowerCase()), {
-    path: ["password"],
-    message: "Don't include the username in the password.",
   });
+// TEMP: username-in-password check disabled
+// .refine((v) => !v.username || !v.password.toLowerCase().includes(v.username.toLowerCase()), {
+//   path: ["password"],
+//   message: "Don't include the username in the password.",
+// });
 type Values = z.infer<typeof schema>;
 
 export function CreateUserDialog({

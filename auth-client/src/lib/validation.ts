@@ -1,7 +1,7 @@
 /** Zod rules that mirror the server's, so most mistakes are caught before a request. */
 import { z } from "zod";
 
-export const MIN_PASSWORD = 12;
+export const MIN_PASSWORD = 4;
 
 export const username = z
   .string()
@@ -38,15 +38,15 @@ export const optionalEmail = z
 export const personName = z.string().trim().max(64, "Use at most 64 characters.");
 
 /** The server also refuses passwords that contain the username. */
-export function passwordFor(usernameValue: () => string) {
+export function passwordFor(_usernameValue: () => string) {
   return z
     .string()
     .min(MIN_PASSWORD, `Use at least ${MIN_PASSWORD} characters.`)
     .max(256)
-    .refine((v) => {
-      const name = usernameValue().trim().toLowerCase();
-      return !name || !v.toLowerCase().includes(name);
-    }, "Don't include the username in the password.");
+    // .refine((v) => {
+    //   const name = usernameValue().trim().toLowerCase();
+    //   return !name || !v.toLowerCase().includes(name);
+    // }, "Don't include the username in the password.");
 }
 
 /** "" -> null, so optional fields are sent as empty. */

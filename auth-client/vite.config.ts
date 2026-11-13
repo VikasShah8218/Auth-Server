@@ -8,7 +8,7 @@ import { defineConfig } from "vite";
 
 // The API is same-origin: these paths go to the Auth Server, everything else is this app.
 const API_PATHS = ["/v1", "/oauth", "/bff", "/.well-known", "/health"];
-const apiTarget = process.env.API_TARGET ?? "http://127.0.0.1:8000";
+const apiTarget = process.env.API_TARGET ?? "http://127.0.0.1:8001";
 const port = Number(process.env.PORT ?? 5181);
 
 export default defineConfig(({ mode }) => ({

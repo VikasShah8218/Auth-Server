@@ -1,4 +1,5 @@
 from datetime import datetime
+from uuid import UUID
 
 from pydantic import BaseModel, Field
 
@@ -17,3 +18,33 @@ class DownstreamOut(BaseModel):
     lag: int
     last_seen_at: datetime
     status: str
+
+
+# Members and roles for downstream servers (scope users.read). Field names follow OIDC userinfo.
+
+
+class ServiceRoleRef(BaseModel):
+    id: UUID
+    name: str
+
+
+class ServiceMemberOut(BaseModel):
+    sub: UUID
+    username: str
+    given_name: str | None
+    family_name: str | None
+    email: str | None
+    is_active: bool
+    roles: list[ServiceRoleRef]
+
+
+class ServiceMembersPage(BaseModel):
+    items: list[ServiceMemberOut]
+    next_cursor: str | None
+
+
+class ServiceRoleOut(BaseModel):
+    id: UUID
+    name: str
+    description: str | None
+    permissions: list[str]

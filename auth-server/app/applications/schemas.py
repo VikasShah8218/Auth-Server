@@ -90,6 +90,7 @@ class RoleUpdate(BaseModel):
 
 class RoleOut(Orm):
     id: int
+    public_id: UUID
     name: str
     description: str | None
 

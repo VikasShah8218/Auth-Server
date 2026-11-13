@@ -68,6 +68,8 @@ POLICY = {
     # Downstream servers, on their service tokens.
     "* /v1/events/*": SelfGuarded("service token, scope events.read"),
     "GET /v1/apps/{key}/permission-map": SelfGuarded("service token, scope permissions.read"),
+    "GET /v1/apps/{key}/members": SelfGuarded("service token, scope users.read"),
+    "GET /v1/apps/{key}/roles": SelfGuarded("service token, scope users.read"),
 
     # A user acting on their own account.
     "* /v1/me*": AUTH,
