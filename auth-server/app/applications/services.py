@@ -8,6 +8,7 @@ from collections.abc import Iterable
 
 from tortoise import connections
 from tortoise.exceptions import IntegrityError
+from tortoise.expressions import Q, Subquery
 from tortoise.functions import Max
 from tortoise.transactions import in_transaction
 
@@ -22,6 +23,7 @@ from app.applications.schemas import (
 )
 from app.audit.services import Actor, record_audit
 from app.events.services import publish_event
+from app.users.models import User
 from settings.settings import settings
 from utilities.common import utcnow
 from utilities.exceptions import AppError, conflict, not_found
@@ -69,6 +71,15 @@ async def bump_versions(app_id: int, user_ids: Iterable[int], event: str = "user
         [app_id, ids],
     )
     await publish_event([app_id], event, {"users": rows})
+
+
+MEMBERS_CHANGED = "members.changed"
+
+
+async def publish_members_changed(app_ids: Iterable[int], payload: dict | None = None) -> None:
+    """Tell downstream servers their cached members or roles list is out of date. Covers what the access
+    events don't: roles created, described, renamed or deleted (members or not), and profile changes."""
+    await publish_event(app_ids, MEMBERS_CHANGED, payload or {})
 
 
 async def _publish_map_change(app: Application) -> None:
@@ -143,21 +154,55 @@ async def update_application(key: str, data: ApplicationUpdate, actor: Actor) ->
     return app
 
 
-async def application_members(app: Application) -> list[dict]:
-    links = await UserRole.filter(role__app_id=app.id).select_related("user", "role")
-    members: dict[int, dict] = {}
-    for link in links:
-        entry = members.setdefault(
-            link.user_id,
-            {
-                "public_id": link.user.public_id,
-                "username": link.user.username,
-                "is_active": link.user.is_active,
-                "roles": [],
-            },
+async def members_query(
+    app_id: int, q: str | None = None, after: str | None = None, limit: int | None = None
+) -> list[tuple[User, list[Role]]]:
+    """Users holding any role in the app, by username, each with their roles in this app (by name).
+
+    `after` and `limit` give a keyset page: usernames are unique, so "username > after" never skips or
+    repeats anyone, even while members change between pages.
+    """
+    users = User.filter(id__in=Subquery(UserRole.filter(role__app_id=app_id).values("user_id")))
+    if q:
+        users = users.filter(
+            Q(username__icontains=q) | Q(email__icontains=q) | Q(first_name__icontains=q) | Q(last_name__icontains=q)
         )
-        entry["roles"].append(link.role)
-    return sorted(members.values(), key=lambda member: member["username"])
+    if after is not None:
+        users = users.filter(username__gt=after)
+    users = users.order_by("username")
+    if limit is not None:
+        users = users.limit(limit)
+    page = await users
+
+    roles: dict[int, list[Role]] = {user.id: [] for user in page}
+    if page:
+        links = await UserRole.filter(role__app_id=app_id, user_id__in=list(roles)).select_related("role")
+        for link in links:
+            roles[link.user_id].append(link.role)
+    return [(user, sorted(roles[user.id], key=lambda role: role.name)) for user in page]
+
+
+async def application_members(app: Application) -> list[dict]:
+    return [
+        {"public_id": user.public_id, "username": user.username, "is_active": user.is_active, "roles": roles}
+        for user, roles in await members_query(app.id)
+    ]
+
+
+async def service_roles(app: Application) -> list[dict]:
+    """Every role of the app with its active permission codes, for downstream servers."""
+    roles = await Role.filter(app_id=app.id).order_by("name").prefetch_related("permissions__permission")
+    return [
+        {
+            "id": role.public_id,
+            "name": role.name,
+            "description": role.description,
+            "permissions": sorted(
+                link.permission.code for link in role.permissions if link.permission.retired_at is None
+            ),
+        }
+        for role in roles
+    ]
 
 
 # Permissions
@@ -271,6 +316,7 @@ async def create_role(key: str, data: RoleCreate, actor: Actor) -> Role:
     try:
         async with in_transaction():
             role = await Role.create(app=app, name=data.name, description=data.description)
+            await publish_members_changed([app.id])
             await record_audit(actor, "role.create", target=role.name, app=app.key)
     except IntegrityError:
         raise conflict("role_exists", "A role with this name exists") from None
@@ -291,6 +337,7 @@ async def update_role(key: str, role_id: int, data: RoleUpdate, actor: Actor) ->
             if "name" in changes:
                 # Role names are in the token, so existing tokens are now out of date.
                 await bump_versions(app.id, await _role_user_ids(role.id))
+            await publish_members_changed([app.id])
             await record_audit(actor, "role.update", target=role.name, app=app.key, details=changes)
     except IntegrityError:
         raise conflict("role_exists", "A role with this name exists") from None
@@ -304,6 +351,7 @@ async def delete_role(key: str, role_id: int, actor: Actor) -> None:
         raise conflict("protected", "The Admin role can't be deleted")
     async with in_transaction():
         await bump_versions(app.id, await _role_user_ids(role.id))
+        await publish_members_changed([app.id])
         await record_audit(actor, "role.delete", target=role.name, app=app.key)
         await role.delete()
 

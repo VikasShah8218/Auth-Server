@@ -3,6 +3,7 @@
     python -m unittest discover -s tests        (or: pytest)
 """
 
+import asyncio
 import json
 import os
 import tempfile
@@ -13,7 +14,7 @@ import httpx
 from joserfc import jwt
 from joserfc.jwk import ECKey, OctKey
 
-from auth_sdk import AuthError, AuthSDK, StaleAuthState, decode_mask
+from auth_sdk import AuthError, AuthSDK, MissingScope, StaleAuthState, decode_mask
 
 ISSUER = "http://auth.test"
 APP = "ANPR"
@@ -45,6 +46,13 @@ class FakeAuthServer:
         ]
         self.snapshot = {"users": [], "revoked_sessions": [], "revoked_clients": []}
         self.calls: list[str] = []
+        self.users_read = True
+        self.members = [
+            {"sub": f"sub-{i}", "username": f"user{i:02d}", "given_name": None, "family_name": None,
+             "email": None, "is_active": True, "roles": [{"id": "r-op", "name": "Operator"}]}
+            for i in range(5)
+        ]
+        self.roles = [{"id": "r-op", "name": "Operator", "description": None, "permissions": ["vehicle.read"]}]
 
     def sign(self, claims: dict, typ: str = "at+jwt", key: ECKey | None = None, lifetime: int = 600) -> str:
         key = key or self.key
@@ -76,6 +84,17 @@ class FakeAuthServer:
             return httpx.Response(200, json={"access_token": "svc", "token_type": "Bearer", "expires_in": 900})
         if path == f"/v1/apps/{APP}/permission-map":
             return httpx.Response(200, json={"version": self.map_version, "permissions": self.permissions})
+        if path in (f"/v1/apps/{APP}/members", f"/v1/apps/{APP}/roles"):
+            if not self.users_read:
+                return httpx.Response(403, json={"detail": {"code": "insufficient_scope", "message": "x"}})
+            if path.endswith("/roles"):
+                return httpx.Response(200, json=self.roles)
+            limit = int(request.url.params.get("limit", 200))
+            after = request.url.params.get("cursor")
+            rows = [m for m in self.members if after is None or m["username"] > after]
+            page = rows[:limit]
+            more = len(rows) > limit
+            return httpx.Response(200, json={"items": page, "next_cursor": page[-1]["username"] if more else None})
         if path == f"/v1/events/{APP}/snapshot":
             return httpx.Response(200, json={"seq": self.seq, "perm_map_version": self.map_version, **self.snapshot})
         if path == f"/v1/events/{APP}/ack":
@@ -324,6 +343,61 @@ class ServiceTokenTests(SDKTestCase):
         await sdk._follow_events()
         with self.assertRaises(AuthError):
             await sdk.verify_service(token)
+
+
+class MembersTests(SDKTestCase):
+    async def test_members_page_all_pages_and_roles(self):
+        sdk = await self.synced_sdk()
+        page = await sdk.members(limit=2)
+        self.assertEqual([m["username"] for m in page["items"]], ["user00", "user01"])
+        self.assertEqual(page["next_cursor"], "user01")
+
+        self.server.members += [
+            {**self.server.members[0], "sub": f"x-{i}", "username": f"z{i:04d}"} for i in range(1500)
+        ]
+        everyone = await sdk.list_all_members()
+        self.assertEqual(len(everyone), 1505)
+        self.assertEqual(len({m["sub"] for m in everyone}), 1505)
+        self.assertEqual(await sdk.roles(), self.server.roles)
+
+    async def test_missing_scope_is_a_clear_error_and_sync_still_works(self):
+        self.server.users_read = False
+        sdk = await self.synced_sdk()
+        await sdk.verify(self.server.user_token())
+        with self.assertRaisesRegex(MissingScope, "users.read"):
+            await sdk.members()
+        with self.assertRaises(MissingScope):
+            await sdk.roles()
+
+    async def test_on_change_fires_for_member_events_and_snapshots(self):
+        sdk = self.make_sdk()
+        self.addAsyncCleanup(sdk._http.aclose)
+        seen: list[tuple[str, dict]] = []
+
+        @sdk.on_change
+        async def refresh(type, payload):
+            seen.append((type, payload))
+
+        def broken(type, payload):
+            raise ValueError("callback bug")
+
+        sdk.on_change(broken)
+        await sdk._follow_events()  # first sync takes a snapshot
+        self.server.publish("members.changed", {"sub": "sub-1"})
+        self.server.publish("user.disabled", {"users": [{"sub": "sub-2", "ver": 2}]})
+        self.server.publish("session.revoked", {"sid": "s", "sub": "sub-2"})  # not a member change
+        self.server.publish("user.access_changed", {"users": [{"sub": "sub-3", "ver": 2}]})
+        with self.assertLogs("auth_sdk", "ERROR"):
+            await sdk._follow_events()
+            await asyncio.sleep(0)
+        await asyncio.gather(*sdk._callback_tasks)
+
+        self.assertEqual(
+            [type for type, _ in seen], ["snapshot", "members.changed", "user.disabled", "user.access_changed"]
+        )
+        self.assertEqual(seen[1][1], {"sub": "sub-1"})
+        self.assertEqual(sdk.members_version, 4)
+        self.assertEqual(sdk._cursor, 4)  # the failing callback didn't stop the sync
 
 
 class FastAPITests(SDKTestCase):

@@ -16,6 +16,7 @@ import random
 import tempfile
 import time
 import uuid
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -37,6 +38,10 @@ _JWKS_RELOAD_SECONDS = 30
 _MAP_RELOAD_SECONDS = 10
 _READ_TIMEOUT_SECONDS = 45
 _TOKEN_MARGIN_SECONDS = 30
+_MEMBERS_PAGE = 1000
+
+# Events after which a cached members or roles list may be out of date.
+MEMBER_EVENTS = frozenset({"user.access_changed", "user.disabled", "members.changed"})
 
 
 class AuthError(Exception):
@@ -45,6 +50,13 @@ class AuthError(Exception):
 
 class StaleAuthState(Exception):
     """This server has lost sync for longer than it allows. Answer 503."""
+
+
+class MissingScope(Exception):
+    """This server's client lacks a scope the call needs (give it to the client in the console)."""
+
+
+ChangeCallback = Callable[[str, dict], Awaitable[None] | None]
 
 
 def decode_mask(value: str) -> int:
@@ -153,6 +165,10 @@ class AuthSDK:
         self._last_contact = 0.0
         self._connected = False
 
+        self.members_version = 0
+        self._change_callbacks: list[ChangeCallback] = []
+        self._callback_tasks: set[asyncio.Task] = set()
+
         saved_instance = self._load_state()
         # A stable name keeps one row per process on the Downstream Sync page across restarts.
         self.instance_id = instance_id or saved_instance or uuid.uuid4().hex
@@ -163,10 +179,12 @@ class AuthSDK:
         self._tasks = [asyncio.create_task(self._run_forever(self._follow_events))]
 
     async def stop(self) -> None:
-        for task in self._tasks:
+        tasks = self._tasks + list(self._callback_tasks)
+        for task in tasks:
             task.cancel()
-        await asyncio.gather(*self._tasks, return_exceptions=True)
+        await asyncio.gather(*tasks, return_exceptions=True)
         self._tasks = []
+        self._callback_tasks.clear()
         await self._http.aclose()
 
     async def _run_forever(self, loop) -> None:
@@ -334,6 +352,8 @@ class AuthSDK:
         self._cursor = snapshot["seq"]
         self._save_state()
         await self._ack(snapshot["seq"])
+        # Events missed while away are gone: anything cached from the auth server must be reloaded.
+        self._members_changed("snapshot", {})
 
     async def _ack(self, seq: int) -> None:
         await self._service_call(
@@ -419,6 +439,8 @@ class AuthSDK:
         self._cursor = seq
         self._save_state()
         await self._ack(seq)
+        if event["type"] in MEMBER_EVENTS:
+            self._members_changed(event["type"], event["payload"])
 
     async def _apply(self, type: str, payload: dict) -> None:
         if type in ("user.access_changed", "user.disabled"):
@@ -440,8 +462,77 @@ class AuthSDK:
             await self.refresh_keys()
         elif type == "permissions.changed":
             await self.refresh_permission_map()
+        elif type == "members.changed":
+            pass  # nothing to verify differently; on_change callbacks run after the ACK
         else:
             logger.info("Ignoring unknown auth event type %s", type)
+
+    # Members and roles (scope users.read)
+
+    def on_change(self, callback: ChangeCallback) -> ChangeCallback:
+        """Call `callback(event_type, payload)` whenever a cached members or roles list may be out of date:
+        after user.access_changed, user.disabled, members.changed, and after a snapshot ("snapshot").
+
+        It may be async. It runs in the background, so a slow refresh never holds up revocations, and an
+        error in it is logged and never stops the sync. Usable as a decorator."""
+        self._change_callbacks.append(callback)
+        return callback
+
+    def _members_changed(self, type: str, payload: dict) -> None:
+        self.members_version += 1
+        for callback in self._change_callbacks:
+            task = asyncio.create_task(self._run_callback(callback, type, payload))
+            self._callback_tasks.add(task)
+            task.add_done_callback(self._callback_tasks.discard)
+
+    @staticmethod
+    async def _run_callback(callback: ChangeCallback, type: str, payload: dict) -> None:
+        try:
+            result = callback(type, payload)
+            if asyncio.iscoroutine(result):
+                await result
+        except Exception:
+            logger.exception("Auth on_change callback failed for %s", type)
+
+    async def _users_call(self, path: str, params: dict | None = None) -> Any:
+        """GET under /v1/apps/{key}/, turning a missing users.read scope into a clear error."""
+        url = f"/v1/apps/{self.app_key}/{path}"
+        try:
+            response = await self._service_call("GET", url, params=params)
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code == 403 and "insufficient_scope" in exc.response.text:
+                raise MissingScope(
+                    f"Client {self.client_id} needs scope users.read: tick it on the client in the console"
+                ) from None
+            raise
+        return response.json()
+
+    async def members(self, q: str | None = None, limit: int = 200, cursor: str | None = None) -> dict:
+        """One page of this application's members: {"items": [...], "next_cursor": str | None}.
+
+        Each item: sub (equals the token "sub"), username, given_name, family_name, email, is_active, and
+        roles as [{"id", "name"}]. Store role ids, not names: ids survive renames."""
+        params: dict[str, Any] = {"limit": limit}
+        if q:
+            params["q"] = q
+        if cursor:
+            params["cursor"] = cursor
+        return await self._users_call("members", params)
+
+    async def list_all_members(self, q: str | None = None) -> list[dict]:
+        """Every member, following next_cursor to the end."""
+        items: list[dict] = []
+        cursor = None
+        while True:
+            page = await self.members(q=q, limit=_MEMBERS_PAGE, cursor=cursor)
+            items.extend(page["items"])
+            cursor = page["next_cursor"]
+            if not cursor:
+                return items
+
+    async def roles(self) -> list[dict]:
+        """Every role of this application: [{"id", "name", "description", "permissions": [codes]}]."""
+        return await self._users_call("roles")
 
     # Verification
 

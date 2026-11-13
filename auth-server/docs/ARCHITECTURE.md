@@ -217,6 +217,7 @@ Event types:
 | `client.revoked` | `{client_id, version, revoked_at}` | a client is disabled, its scopes or audiences change, or its secret rotates |
 | `key.rotated` | `{kid}` or `{kid, revoked: true}` | key rotation or revocation (sent to every app) |
 | `permissions.changed` | `{version}` | a permission is created, revived or retired |
+| `members.changed` | `{}` or `{sub}` | a role is created, described, renamed or deleted (`{}`); a user's first name, last name or email changes (`{sub}`, sent to each app where they hold a role) |
 
 ## 10. Admin console (backend-for-frontend)
 
@@ -316,7 +317,8 @@ All settings come from `.env` through `settings/settings.py` (see `.env.example`
 |---|---|---|
 | `applications` | applications | `key`, `name`, `is_active`, `perm_map_version` |
 | `permissions` | applications | `app`, `code`, `bit`, `retired_at`. Unique (`app`, `code`) and (`app`, `bit`) |
-| `roles`, `role_permissions`, `user_roles` | applications | join tables, unique pairs |
+| `roles` | applications | `app`, `name` (unique per app), `public_id` (stable UUID for downstream servers), `description` |
+| `role_permissions`, `user_roles` | applications | join tables, unique pairs |
 | `user_app_states` | applications | `user`, `app`, `version` (the `ver` claim) |
 | `users` | users | `public_id` (the `sub`), `username`, `email`, `password_hash`, `is_active`, `is_superuser` |
 | `mfa_factors` | identity | `user`, `type` (totp / webauthn), `encrypted_secret`, `last_used_step`, `credential_id`, `sign_count`, `confirmed_at` |

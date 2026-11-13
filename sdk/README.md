@@ -38,7 +38,8 @@ async def vehicles(user: Principal = Depends(auth.require_perm("vehicle.read")))
     return {"sub": user.sub}
 ```
 
-The client needs the scopes `events.read` and `permissions.read`.
+The client needs the scopes `events.read` and `permissions.read`. Add `users.read` to list your app's members
+and roles (below); without it everything else works as before.
 
 | Dependency | Requires |
 |---|---|
@@ -50,6 +51,28 @@ The client needs the scopes `events.read` and `permissions.read`.
 Outside FastAPI, call `await auth.verify(token)`. It returns a `Principal` with `has_perm()` and `has_role()`, or raises `AuthError` (answer 401) or `StaleAuthState` (answer 503).
 
 For a call from another server, use `await auth.verify_service(token)`.
+
+## Members and roles
+
+For screens like "give this camera to a user or a role" (scope `users.read`):
+
+| Method | Returns |
+|---|---|
+| `await auth.members(q=None, limit=200, cursor=None)` | One page: `{"items": [...], "next_cursor"}`. Each item has `sub`, `username`, `given_name`, `family_name`, `email`, `is_active`, `roles: [{"id", "name"}]` |
+| `await auth.list_all_members(q=None)` | Every member, following the cursor |
+| `await auth.roles()` | `[{"id", "name", "description", "permissions": [codes]}]` |
+| `auth.on_change(callback)` | Calls `callback(event_type, payload)` (sync or async, in the background) after `user.access_changed`, `user.disabled`, `members.changed` and a snapshot. Usable as a decorator |
+| `auth.members_version` | Rises at the same moments, for code that polls |
+
+```python
+@auth.on_change
+async def refresh(event_type, payload):
+    cache.members = await auth.list_all_members()
+    cache.roles = await auth.roles()
+```
+
+Key grants by the member's `sub` (it equals `principal.sub`) and by the role's `id`, never its name: a role
+can be renamed, its id stays. Without `users.read` these calls raise `MissingScope`.
 
 ## What it does for you
 

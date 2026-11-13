@@ -25,7 +25,7 @@ const BROWSER_SCOPES = [
 const SERVICE_SCOPES = [
   { value: "events.read", help: "Follow the revocation event stream" },
   { value: "permissions.read", help: "Read the permission map" },
-  { value: "users.read", help: "Reserved for user lookups" },
+  { value: "users.read", help: "List this app's members and roles (downstream servers)" },
 ];
 
 function redirectUriError(uri: string): string | null {

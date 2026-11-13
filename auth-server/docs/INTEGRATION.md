@@ -46,7 +46,7 @@ The examples use an application with key `ANPR`. Replace it with your own.
    | Field | Value |
    |---|---|
    | type | `confidential` |
-   | scopes | `events.read`, `permissions.read` |
+   | scopes | `events.read`, `permissions.read`, plus `users.read` if your server lists its members and roles (section 10) |
    | audiences | apps this server may call or exchange tokens for (e.g. `NVR`), or none |
 
    Save the **client secret**: it's shown once. Rotate it later with *Rotate secret*.
@@ -139,6 +139,11 @@ async def delete_vehicle(plate: str, user: Principal = Depends(auth.require_role
 | `auth.current_service` | FastAPI dependency: a valid **service** token for this app (server-to-server). Returns its claims; `client_id` names the caller |
 | `await auth.verify_service(token)` | Verifies another server's service token sent to this app. Returns its claims |
 | `auth.health()` | `{"instance_id", "connected", "synced", "cursor", "seconds_since_contact", "keys", "stale"}`. Put it in your health check |
+| `await auth.members(q=None, limit=200, cursor=None)` | One page of your app's members (scope `users.read`, section 10) |
+| `await auth.list_all_members(q=None)` | Every member, following the cursor |
+| `await auth.roles()` | Every role with its permission codes |
+| `auth.on_change(callback)` | `callback(event_type, payload)`, sync or async, runs in the background whenever members or roles may have changed (also after a snapshot). Usable as a decorator |
+| `auth.members_version` | Integer that rises at the same moments, for servers that poll |
 
 `Principal` fields: `sub` (user UUID), `sid`, `roles`, `mask`, `client_id`, `actor` (set on exchanged tokens),
 `claims` (all claims). Methods: `has_perm(code)`, `has_role(*roles)`.
@@ -470,6 +475,9 @@ Content-Type: application/json
 | `client.revoked` | `{"client_id", "version", "revoked_at"}` | store it under `client_id` |
 | `key.rotated` | `{"kid"}` or `{"kid", "revoked": true}` | reload JWKS; if `revoked`, also drop and blocklist the `kid` |
 | `permissions.changed` | `{"version"}` | refetch the permission map |
+| `members.changed` | `{}` or `{"sub"}` | nothing for verification; refresh a cached members or roles list (section 10) |
+
+Unknown event types must be ignored (acknowledge them like any other), so new ones never break you.
 
 Applying an event twice is harmless, so at-least-once delivery is safe.
 
@@ -549,7 +557,44 @@ grant_type=urn:ietf:params:oauth:grant-type:token-exchange
 
 ---
 
-## 10. Failure behaviour
+## 10. Listing your app's users and roles
+
+For screens like "give this camera to a user or a role", your server needs everyone who holds a role in your
+app, including people who have never signed in to it. Give your server's client the **`users.read`** scope,
+then:
+
+```http
+GET /v1/apps/SNVR/members?limit=200[&cursor=...][&q=...]     ->  {"items": [...], "next_cursor": ...}
+GET /v1/apps/SNVR/roles                                        ->  [{"id", "name", "description", "permissions"}]
+Authorization: Bearer <service token>
+```
+
+Full shapes are in [API.md, section 11](API.md#11-downstream-servers-events). With the SDK:
+
+```python
+members = await auth.list_all_members()
+roles = await auth.roles()
+
+@auth.on_change
+async def refresh(event_type, payload):
+    cache.members = await auth.list_all_members()
+    cache.roles = await auth.roles()
+```
+
+Rules that keep your data right:
+
+- **Key user grants by `sub`.** It's the `sub` claim in that user's tokens, so `principal.sub` matches it.
+- **Key role grants by the role `id`, never its name.** An admin can rename a role; the id stays. Compare with
+  the token's `roles` names through the cached roles list (`name` → `id`).
+- **Refresh on `user.access_changed`, `user.disabled`, `members.changed`, and after a snapshot.** The SDK's
+  `on_change` covers all four. Several events can arrive together, so debounce the refresh.
+- **Show disabled members** (`is_active: false`) greyed out instead of dropping their grants.
+- **Treat names and email as personal data**: cache only what your screens need.
+- Your client sees only its own app (`403 wrong_application` otherwise) and can't change anything.
+
+---
+
+## 11. Failure behaviour
 
 | Situation | Your server |
 |---|---|
@@ -563,7 +608,7 @@ grant_type=urn:ietf:params:oauth:grant-type:token-exchange
 
 ---
 
-## 11. Integration checklist
+## 12. Integration checklist
 
 - [ ] Application, permissions, roles and user assignments created in the console
 - [ ] Confidential client with `events.read` and `permissions.read`; secret stored in your secrets store
@@ -577,3 +622,4 @@ grant_type=urn:ietf:params:oauth:grant-type:token-exchange
 - [ ] `auth.health()` included in your health check
 - [ ] Browser tokens kept out of `localStorage`
 - [ ] The instance shows `ok` on the Downstream Sync page
+- [ ] If you list members: `users.read` on the client, grants keyed by `sub` and role `id`, cache refreshed on `on_change`

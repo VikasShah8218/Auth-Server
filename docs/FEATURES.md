@@ -349,7 +349,7 @@ TypeScript, Vite, Tailwind CSS v4, TanStack Router and Query, Radix primitives.
 - **Client credentials grant.** A backend service trades its id and secret for a 15-minute service token.
 - **Service tokens are scoped** (`events.read`, `permissions.read`, `users.read`) and target AUTH by default,
   or another app listed in the client's audiences.
-- **A service may only read its own app's** events and permission map.
+- **A service may only read its own app's** events, permission map, members and roles.
 - **Token exchange (RFC 8693).** One service calls another on a user's behalf:
   - needs a confidential client, a user token issued for that client's own app, and a target app in the
     client's audiences;
@@ -397,9 +397,19 @@ The heart of the system: how every downstream server learns about changes within
 | `client.revoked` | a client is disabled, its scopes or audiences change, or its secret rotates |
 | `key.rotated` | a signing key rotates or is revoked (sent to every app) |
 | `permissions.changed` | a permission is created, revived or retired |
+| `members.changed` | a role is created, described, renamed or deleted, or a user's name or email changes |
 
 **Permission map endpoint.** Downstream servers fetch the code-to-bit map (`/v1/apps/{key}/permission-map`)
 and refetch when a token's `pv` is newer.
+
+**Members and roles endpoints** (scope `users.read`). A downstream server lists everyone who holds a role in
+its own app (`/v1/apps/{key}/members`), including people who never signed in to it, and every role with its
+permission codes (`/v1/apps/{key}/roles`). Built for screens like "give this camera to a user or a role":
+
+- Members carry `sub` (the same as in their tokens), username, names, email, active flag and roles.
+- Keyset paging (`limit`, `cursor`) and search (`q`).
+- **Roles have a stable id** that survives renames, so downstream grants never break when a role is renamed.
+- Read-only, own app only, and nothing private (no password hashes, MFA state or internal ids).
 
 ---
 

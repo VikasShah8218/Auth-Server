@@ -12,7 +12,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "e2e": "playwright test",
-    "gen:api": "openapi-typescript openapi/auth.json -o src/api/schema.d.ts",
+    "gen:api": "openapi-typescript openapi/auth.json -o src/api/schema.d.ts && prettier --write src/api/schema.d.ts",
     "analyze": "vite build --mode analyze"
   },
   "dependencies": {
