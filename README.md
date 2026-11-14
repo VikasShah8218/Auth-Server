@@ -190,6 +190,7 @@ Auth-Server/
 ├── auth-server/   FastAPI server: identity, OAuth/OIDC, access control, events, audit
 ├── auth-client/   React app: hosted login page, admin console, My account
 ├── sdk/           Python SDK for downstream servers (ANPR, NVR, ...)
+├── deploy/        Docker Compose stack: Caddy (HTTPS) + API + PostgreSQL + Redis
 ├── docs/          Features, flow diagrams, comparison, project structure, plans and handoffs
 └── gallery/       Screenshots used in this README
 ```
@@ -204,18 +205,32 @@ Auth-Server/
 
 ## ⚡ Quick start
 
-### Prerequisites
+### 🐳 Production with Docker (one command)
+
+```bash
+cd deploy
+cp .env.example .env          # set DOMAIN, ISSUER, MASTER_KEY, DB_PASSWORD
+docker compose up -d --build  # Caddy with automatic HTTPS, API, PostgreSQL, Redis (~250 MB RAM)
+docker compose run --rm api python cli.py create-admin --username admin --email you@example.com
+```
+
+Then open `https://<DOMAIN>`. Backups, upgrades and the nginx alternative are in
+**[deploy/README.md](deploy/README.md)**.
+
+### 🛠️ Development
+
+#### Prerequisites
 
 - **Python 3.13** and **Node.js 22**
 - **PostgreSQL** and **Redis**, running locally
 
-### 1. Start the server
+#### 1. Start the server
 
 ```bash
 cd auth-server
 python -m venv .venv
 .venv\Scripts\activate                     # Windows (macOS/Linux: source .venv/bin/activate)
-pip install -r requirements.txt
+pip install -r requirements-dev.txt
 
 copy .env.example .env                     # macOS/Linux: cp
 ```
@@ -242,7 +257,7 @@ py main.py                                 # API on http://localhost:8000
 
 > There is **no default password**. `create-admin` asks for one, and works only once.
 
-### 2. Start the web app
+#### 2. Start the web app
 
 ```bash
 cd auth-client
@@ -311,6 +326,7 @@ Not on Python? The protocol is plain HTTP + SSE + JWT. See
 | Document | What's inside |
 |---|---|
 | [docs/FEATURES.md](docs/FEATURES.md) | Every feature, small to big |
+| [deploy/README.md](deploy/README.md) | Docker Compose deployment: install, first admin, upgrade, backup |
 | [docs/FLOWS.md](docs/FLOWS.md) | Diagrams of every flow: logins, SDK sync, events, keys, replicas |
 | [docs/COMPARISON_OLD_VS_NEW.md](docs/COMPARISON_OLD_VS_NEW.md) | This version compared with the previous authentication-server ([PDF](docs/COMPARISON_OLD_VS_NEW.pdf)) |
 | [auth-server/docs/ARCHITECTURE.md](auth-server/docs/ARCHITECTURE.md) | How it's built and why: tokens, keys, revocation, failure behaviour |
@@ -357,7 +373,7 @@ Found a vulnerability? Please report it privately to the maintainers rather than
 - [x] Server: identity, MFA, OAuth 2.1 / OIDC, access control, events, audit
 - [x] Web app: login page, admin console, self-service
 - [x] Python SDK for downstream servers
-- [ ] Docker images and nginx config for production
+- [x] Docker Compose deployment with automatic HTTPS ([deploy/](deploy/README.md))
 - [ ] Move NVR and ANPR onto the SDK
 - [ ] Consent screen for third-party clients
 
