@@ -170,6 +170,15 @@ flowchart LR
    streams it to every affected app, which drops the old token within seconds.
 4. **If the stream is ever down,** the short token lifetime is the guaranteed upper limit.
 
+🔀 **Every flow, step by step, as diagrams** is in **[docs/FLOWS.md](docs/FLOWS.md)**:
+
+| Sign-in | Downstream | Under the hood |
+|---|---|---|
+| [Sign-in page: password, TOTP, passkey](docs/FLOWS.md#2-sign-in-page-password-totp-passkey) | [SDK startup and sync](docs/FLOWS.md#6-downstream-server-sdk-startup-and-sync) | [A change reaching every server](docs/FLOWS.md#8-a-change-reaching-every-downstream-server) |
+| [Admin console login](docs/FLOWS.md#3-admin-console-auth-client-login) | [Checking a request](docs/FLOWS.md#7-downstream-server-checking-a-request) | [Signing key rotation](docs/FLOWS.md#11-signing-key-rotation-and-revocation) |
+| [Web / desktop app login (PKCE)](docs/FLOWS.md#4-downstream-web-or-desktop-app-login-pkce) | [Server to server](docs/FLOWS.md#9-server-to-server-service-tokens-and-token-exchange) | [Running several replicas](docs/FLOWS.md#12-running-several-replicas) |
+| [Refresh and logout](docs/FLOWS.md#5-refresh-token-rotation-and-logout) | [Members and roles API](docs/FLOWS.md#10-members-and-roles-api) | [The big picture](docs/FLOWS.md#1-the-big-picture) |
+
 The deep dive is in [auth-server/docs/ARCHITECTURE.md](auth-server/docs/ARCHITECTURE.md).
 
 ---
@@ -181,7 +190,7 @@ Auth-Server/
 ├── auth-server/   FastAPI server: identity, OAuth/OIDC, access control, events, audit
 ├── auth-client/   React app: hosted login page, admin console, My account
 ├── sdk/           Python SDK for downstream servers (ANPR, NVR, ...)
-├── docs/          Features, project structure, plans and handoffs
+├── docs/          Features, flow diagrams, comparison, project structure, plans and handoffs
 └── gallery/       Screenshots used in this README
 ```
 
@@ -302,6 +311,8 @@ Not on Python? The protocol is plain HTTP + SSE + JWT. See
 | Document | What's inside |
 |---|---|
 | [docs/FEATURES.md](docs/FEATURES.md) | Every feature, small to big |
+| [docs/FLOWS.md](docs/FLOWS.md) | Diagrams of every flow: logins, SDK sync, events, keys, replicas |
+| [docs/COMPARISON_OLD_VS_NEW.md](docs/COMPARISON_OLD_VS_NEW.md) | This version compared with the previous authentication-server ([PDF](docs/COMPARISON_OLD_VS_NEW.pdf)) |
 | [auth-server/docs/ARCHITECTURE.md](auth-server/docs/ARCHITECTURE.md) | How it's built and why: tokens, keys, revocation, failure behaviour |
 | [auth-server/docs/API.md](auth-server/docs/API.md) | Every endpoint, request, response and error code |
 | [auth-server/docs/INTEGRATION.md](auth-server/docs/INTEGRATION.md) | Step-by-step guide for downstream servers |
