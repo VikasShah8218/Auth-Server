@@ -16,7 +16,7 @@ You need PostgreSQL and Redis running.
 ```bash
 python -m venv .venv
 .venv\Scripts\activate
-pip install -r requirements.txt
+pip install -r requirements-dev.txt
 
 copy .env.example .env          # then set DB_PASSWORD and MASTER_KEY
 createdb auth
